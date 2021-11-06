@@ -1,0 +1,1 @@
+export const localItem = "LOCAL_ITEM"
