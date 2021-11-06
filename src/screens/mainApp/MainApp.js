@@ -5,6 +5,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
+  Dimensions
 } from 'react-native';
 import moment from 'moment';
 import {LineChart} from 'react-native-chart-kit';
@@ -17,11 +19,10 @@ import {
 } from 'react-native-responsive-dimensions';
 import {PermissionsAndroid, Platform} from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {getCrypto} from './service';
-import {localData} from '../../utils/localData';
 import {localItem} from '../../constants/CONSTANT';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function MainApp() {
   const [cryptoData, setCryptoData] = useState({});
@@ -45,7 +46,7 @@ export default function MainApp() {
       },
       error => {
         setLocationStatus(error.message);
-        console.log(error);
+        Alert.alert('Fail get location, make sure your location');
       },
       {
         enableHighAccuracy: false,
@@ -71,23 +72,24 @@ export default function MainApp() {
           getOneTimeLocation();
         } else {
           setLocationStatus('Permission Denied');
+          Alert.alert('Permission Denied', locationStatus);
         }
       } catch (err) {
-        console.warn(err);
+        Alert.alert('Fail get location, make sure your location');
       }
     }
   };
 
   /**
-   *
+   * Get Api
    */
   const getCryptoApi = async () => {
     setIsLoading(true);
 
     try {
       const response = await getCrypto();
+
       setCryptoData(response);
-      // console.log(response)
       setIsLoading(false);
       setIsError(false);
     } catch (error) {
@@ -100,32 +102,73 @@ export default function MainApp() {
     location,
   };
 
-      // console.log(cryptoData?.bpi?.USD?.rate_float, "Response")
-
+  /**
+   * Save To Local Data
+   * if user refetch
+   * @returns {Promise} for saving data
+   */
   const saveToLocalData = async () => {
     const value = await AsyncStorage.getItem(localItem);
 
     try {
       let arr = JSON.parse(value) || [];
-      const checkingData = cryptoDataWithLocation.cryptoData && cryptoDataWithLocation.location ? cryptoDataWithLocation : arr[arr.length - 1]
+      const checkingData =
+        cryptoDataWithLocation.cryptoData && cryptoDataWithLocation.location
+          ? cryptoDataWithLocation
+          : arr[arr.length - 1];
       arr.push(checkingData);
       await AsyncStorage.setItem(localItem, JSON.stringify(arr));
+      getData();
+    } catch (e) {
+      Alert.alert('Device error save data, please reopen app');
+    }
+  };
+
+  /**
+   * If user alredy have 5 latest data
+   * Then index array[0] will delete
+   * At the same time will recursion @function getData
+   * Like linked list will update from the Head
+   * @returns {Promise} for deleting old data
+   */
+  const deleteOldData = async () => {
+    const value = await AsyncStorage.getItem(localItem);
+
+    try {
+      let arr = JSON.parse(value) || [];
+      const checkingData =
+        cryptoDataWithLocation.cryptoData && cryptoDataWithLocation.location
+          ? cryptoDataWithLocation
+          : arr[arr.length - 1];
+      arr.shift(checkingData);
+      await AsyncStorage.setItem(localItem, JSON.stringify(arr));
+      getData();
     } catch (e) {
       // saving error
     }
   };
+
+  /**
+   * Checking current data if less than 5 || empty
+   * @returns {Promise} for check old data and new data
+   */
   const getData = async () => {
     try {
       const value = await AsyncStorage.getItem(localItem);
       const localData = JSON.parse(value);
       setCurrentLocalData(localData);
-      console.log(localData, "Saya")
-      if (value === null) {
-        // value previously stored
+      getCryptoApi();
+
+      if (localData) {
+        if (localData.length > 5) {
+          deleteOldData();
+        }
+      } else {
+        saveToLocalData();
       }
     } catch (error) {
       // error reading value
-      console.log(error);
+   Alert.alert(error)
     }
   };
 
@@ -133,86 +176,92 @@ export default function MainApp() {
     getCryptoApi();
     requestLocationPermission();
     getData();
-    // saveToLocalData()
   }, []);
 
-
+  /**
+   * Find data array for chart
+   *
+   * @param {string} option - option
+   * @returns {Array} - Data array
+   */
   const forDataChart = option => {
-    let arrayChart = []
+    let arrayChart = [];
     if (option === 'price') {
       const resultChart =
         currentLocalData?.length > 0 &&
-        currentLocalData?.map((data, index) => data?.bpi?.USD?.rate_float);
+        currentLocalData?.map((data, index) => data?.cryptoData?.bpi?.USD?.rate_float);
 
-        // console.log(resultChart, "RCHart")
-        // console.log(cryptoData?.bpi?.USD?.rate_float, "COk")
-        arrayChart.push(resultChart)
-      return resultChart ? arrayChart : [61]  ;
-    }
-    else{
+      return resultChart ? resultChart : [61];
+    } else {
       const resultChart =
-      currentLocalData?.length > 0 &&
-      currentLocalData?.map((data, index) => moment(data?.time?.updatedISO).format("HH"));
-      arrayChart.push(resultChart)
-
-    return resultChart ? arrayChart : [moment(cryptoData?.time?.updatedISO).format("HH")] ;
+        currentLocalData?.length > 0 &&
+        currentLocalData?.map((data, index) =>
+        // console.log(data, "Saya")
+          moment(data?.cryptoData.time?.updatedISO).format('HH:mm'),
+        );
+      return resultChart
     }
   };
 
-  // console.log(forDataChart("price"))
-
+  console.log()
+  console.log()
   const _renderChart = () => {
-    if(cryptoData || currentLocalData)
-    return (
-              <LineChart
-              // data={{
-              // labels:   forDataChart("time"),
-              // datasets: [
-              //   {
-              //     data: forDataChart("price"),
-              //   },
-              // ],
+    let arrayLabels = []
+    let arrayPrice = []
+    const oldPrice = parseFloat(cryptoData?.bpi?.USD?.rate_float.toFixed(2))
+    arrayLabels.push(forDataChart('time'))
+    console.log([forDataChart('price')], "Price")
 
-            // }}
 
-             data={{
-              labels:   [11],
-              datasets: [
-                {
-                  data: [11],
-                },
-              ],
-              }}
-            
-            width={responsiveWidth(100)} // from react-native
-            height={220}
-            yAxisLabel="$"
-            yAxisSuffix="k"
-            yAxisInterval={1} // optional, defaults to 1
-            chartConfig={{
-              backgroundColor: '#e26a00',
-              //   backgroundGradientFrom: "#fb8c00",
-              //   backgroundGradientTo: "#ffa726",
-              decimalPlaces: 2, // optional, defaults to 2dp
-              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-              propsForDots: {
-                r: '7',
-                strokeWidth: '2',
-                stroke: '#ffa726',
-              },
-            }}
-            bezier
-          />
-    )
-    return(
-      <Text>Loading</Text>
-    ) 
-          
-  }
+    if (cryptoData || currentLocalData)
+      return (
+  <LineChart
+    data={{
+      labels: forDataChart('time'),
+      datasets: [
+        {
+          data: forDataChart('price'),
+        
+        },
+      ]
+    }}
+    width={Dimensions.get("window").width} // from react-native
+    height={220}
+    yAxisLabel="$"
+    yAxisInterval={2} // optional, defaults to 1
+    chartConfig={{
+      backgroundColor: "#e26a00",
+      backgroundGradientFrom: "#fb8c00",
+      backgroundGradientTo: "#ffa726",
+      decimalPlaces: 2, // optional, defaults to 2dp
+      color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+      labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+      style: {
+        borderRadius: 16
+      },
+      propsForHorizontalLabels:{
+        fontSize:9,
+      },
+      propsForDots: {
+        r: "6",
+        strokeWidth: "2",
+        stroke: "#ffa726"
+      }
+    }}
+    bezier
+    style={{
+      marginVertical: 8,
+      borderRadius: 16
+    }}
+  />
+      );
+    return <Text>Loading</Text>;
+  };
 
-  if(isLoading) return <Text>Loading</Text>;
-  else if (!currentLocalData && !cryptoData) return <Text>Data Can't Be Fetch</Text>;
+  if (isLoading) return <Text>Loading</Text>;
+  else if (!currentLocalData && !cryptoData)
+    return <Text>Data Can't Be Fetch</Text>;
+  else if (isError) return <Text>Something is error</Text>;
   return (
     <ScrollView style={styles.scrollContainer}>
       <View style={styles.viewContainer}>
@@ -220,16 +269,17 @@ export default function MainApp() {
         <Text style={styles.textHeading}>
           {moment(cryptoData?.time?.updated).format('llll')}
         </Text>
-        <View style={styles.viewChart}>
-  {_renderChart()}
-        </View>
+        <View style={styles.viewChart}>{_renderChart()}</View>
         {currentLocalData &&
           currentLocalData.map((data, index) => {
             return (
-              <View>
+              <View key={index}>
                 <View style={styles.viewData}>
                   <Text style={styles.textBold}>
-                    Time: {moment(data?.cryptoData?.updatedISO).format('HH: mm')}
+                    Time:{' '}
+                    {moment(data?.cryptoData?.time?.updatedISO).format(
+                      'HH: mm',
+                    )}
                   </Text>
                   <Text>USD: {data?.cryptoData?.bpi?.USD?.rate}</Text>
                   <Text>Latitude: {data?.location?.coords?.latitude}</Text>
@@ -298,7 +348,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: responsiveScreenHeight(4)
+    marginBottom: responsiveScreenHeight(4),
   },
   textButton: {
     color: '#FFFFFF',
