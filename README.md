@@ -26,6 +26,7 @@
 2. Unit Test
 3. E2E (Detox, Appium)
 4. Create snaphoot
+5. Optimize the size of apk/iOS build
 
 ## About (MVP)
 
