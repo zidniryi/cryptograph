@@ -2,27 +2,21 @@ import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Alert,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import moment from 'moment';
 import {LineChart} from 'react-native-chart-kit';
-import {
-  responsiveFontSize,
-  responsiveHeight,
-  responsiveScreenHeight,
-  responsiveScreenWidth,
-  responsiveWidth,
-} from 'react-native-responsive-dimensions';
 import {PermissionsAndroid, Platform} from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {getCrypto} from './service';
 import {localItem} from '../../constants/CONSTANT';
+import {styles} from './styles/MainApp.style';
+import ButtonApp from './components/ButtonApp';
+import Loader from './components/Loader';
 
 export default function MainApp() {
   const [cryptoData, setCryptoData] = useState({});
@@ -149,6 +143,19 @@ export default function MainApp() {
   };
 
   /**
+   * Data will updated everyday if today !=  first date in array
+   */
+  const removeToken = async () => {
+    try {
+      await AsyncStorage.removeItem(localItem);
+      saveToLocalData();
+      console.log('Call This');
+    } catch (exception) {
+      Alert.alert("Data can't be fetch");
+    }
+  };
+
+  /**
    * Checking current data if less than 5 || empty
    * @returns {Promise} for check old data and new data
    */
@@ -158,17 +165,24 @@ export default function MainApp() {
       const localData = JSON.parse(value);
       setCurrentLocalData(localData);
       getCryptoApi();
+      const firstDataTime = moment(
+        localData[0]?.cryptoData?.time?.updatedISO,
+      ).format('DD');
+      const dateToday = moment().format('DD');
+      const compareDate = firstDataTime === dateToday;
 
       if (localData) {
-        if (localData.length > 5) {
+        if (localData.length > 5 && compareDate) {
           deleteOldData();
         }
+      } else if (!compareDate) {
+        removeToken();
       } else {
         saveToLocalData();
       }
     } catch (error) {
       // error reading value
-   Alert.alert(error)
+      Alert.alert(error);
     }
   };
 
@@ -189,76 +203,67 @@ export default function MainApp() {
     if (option === 'price') {
       const resultChart =
         currentLocalData?.length > 0 &&
-        currentLocalData?.map((data, index) => data?.cryptoData?.bpi?.USD?.rate_float);
+        currentLocalData?.map(
+          (data, index) => data?.cryptoData?.bpi?.USD?.rate_float,
+        );
 
       return resultChart ? resultChart : [61];
     } else {
       const resultChart =
         currentLocalData?.length > 0 &&
         currentLocalData?.map((data, index) =>
-        // console.log(data, "Saya")
           moment(data?.cryptoData.time?.updatedISO).format('HH:mm'),
         );
-      return resultChart
+      return resultChart ? resultChart : [moment().format('HH')];
     }
   };
 
-  console.log()
-  console.log()
   const _renderChart = () => {
-    let arrayLabels = []
-    let arrayPrice = []
-    const oldPrice = parseFloat(cryptoData?.bpi?.USD?.rate_float.toFixed(2))
-    arrayLabels.push(forDataChart('time'))
-    console.log([forDataChart('price')], "Price")
-
-
     if (cryptoData || currentLocalData)
       return (
-  <LineChart
-    data={{
-      labels: forDataChart('time'),
-      datasets: [
-        {
-          data: forDataChart('price'),
-        
-        },
-      ]
-    }}
-    width={Dimensions.get("window").width} // from react-native
-    height={220}
-    yAxisLabel="$"
-    yAxisInterval={2} // optional, defaults to 1
-    chartConfig={{
-      backgroundColor: "#e26a00",
-      backgroundGradientFrom: "#fb8c00",
-      backgroundGradientTo: "#ffa726",
-      decimalPlaces: 2, // optional, defaults to 2dp
-      color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-      labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-      style: {
-        borderRadius: 16
-      },
-      propsForHorizontalLabels:{
-        fontSize:9,
-      },
-      propsForDots: {
-        r: "6",
-        strokeWidth: "2",
-        stroke: "#ffa726"
-      }
-    }}
-    bezier
-    style={{
-      marginVertical: 8,
-      borderRadius: 16
-    }}
-  />
+        <LineChart
+          data={{
+            labels: forDataChart('time'),
+            datasets: [
+              {
+                data: forDataChart('price'),
+              },
+            ],
+          }}
+          width={Dimensions.get('window').width} // from react-native
+          height={220}
+          yAxisLabel="$"
+          yAxisInterval={2} // optional, defaults to 1
+          chartConfig={{
+            backgroundColor: '#e26a00',
+            backgroundGradientFrom: '#fb8c00',
+            backgroundGradientTo: '#ffa726',
+            decimalPlaces: 2, // optional, defaults to 2dp
+            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            style: {
+              borderRadius: 16,
+            },
+            propsForHorizontalLabels: {
+              fontSize: 9,
+            },
+            propsForDots: {
+              r: '6',
+              strokeWidth: '2',
+              stroke: '#ffa726',
+            },
+          }}
+          bezier
+          style={{
+            marginVertical: 8,
+            borderRadius: 16,
+          }}
+        />
       );
     return <Text>Loading</Text>;
   };
 
-  if (isLoading) return <Text>Loading</Text>;
+  if (isLoading) return <Loader/>;
   else if (!currentLocalData && !cryptoData)
     return <Text>Data Can't Be Fetch</Text>;
   else if (isError) return <Text>Something is error</Text>;
@@ -290,68 +295,9 @@ export default function MainApp() {
             );
           })}
         <View style={styles.viewButton}>
-          <TouchableOpacity activeOpacity={0.6} onPress={saveToLocalData}>
-            <View style={styles.button}>
-              <Text style={styles.textButton}>REFRESH</Text>
-            </View>
-          </TouchableOpacity>
+          <ButtonApp buttonText="REFRESH" onPress={saveToLocalData} />
         </View>
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  scrollContainer: {
-    backgroundColor: '#FFFFFF',
-  },
-  viewContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    marginTop: responsiveHeight(10),
-    backgroundColor: '#FFFFFF',
-  },
-  textHeading: {
-    fontSize: responsiveFontSize(2.2),
-    color: '#000000',
-    marginLeft: responsiveWidth(4),
-  },
-  viewChart: {
-    marginLeft: responsiveWidth(4),
-    marginRight: responsiveWidth(4),
-    marginVertical: responsiveHeight(2.2),
-  },
-  viewData: {
-    marginLeft: responsiveWidth(4),
-    marginRight: responsiveWidth(4),
-    marginTop: responsiveHeight(1),
-    marginBottom: responsiveHeight(2),
-  },
-  textBold: {
-    fontWeight: 'bold',
-  },
-  divider: {
-    height: responsiveHeight(0.5),
-    width: responsiveScreenWidth(92),
-    paddingHorizontal: responsiveWidth(16),
-    backgroundColor: '#DDDDDD',
-    alignSelf: 'center',
-  },
-  viewButton: {
-    alignItems: 'center',
-    marginTop: responsiveHeight(2.2),
-  },
-  button: {
-    width: responsiveWidth(80),
-    height: responsiveHeight(8),
-    backgroundColor: '#3498db',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: responsiveScreenHeight(4),
-  },
-  textButton: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-});
