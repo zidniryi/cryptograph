@@ -292,7 +292,7 @@ export default function MainApp() {
                     )}
                   </Text>
                   <Text style={styles.textData}>
-                    USD: {data?.cryptoData?.bpi?.USD?.rate || ayam}
+                    USD: {data?.cryptoData?.bpi?.USD?.rate}
                   </Text>
                   <Text style={styles.textData}>
                     Latitude: {data?.location?.coords?.latitude}
