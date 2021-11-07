@@ -1,11 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Alert,
-  Dimensions,
-} from 'react-native';
+import {View, Text, ScrollView, Alert, Dimensions} from 'react-native';
 import moment from 'moment';
 import {LineChart} from 'react-native-chart-kit';
 import {PermissionsAndroid, Platform} from 'react-native';
@@ -23,23 +17,22 @@ export default function MainApp() {
   const [isError, setIsError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [location, setLocation] = useState({});
-  const [locationStatus, setLocationStatus] = useState('');
+  const [locationStatus, setLocationStatus] = useState(false);
   const [currentLocalData, setCurrentLocalData] = useState([]);
 
   const getOneTimeLocation = () => {
-    setLocationStatus('Getting Location ...');
+    setLocationStatus('LOADING');
     Geolocation.watchPosition(
       position => {
-        setLocationStatus('You are Here');
-
         //getting the Longitude from the location json
         const currentLocation = position;
-
         //Setting Longitude state
         setLocation(currentLocation);
+        setLocationStatus('ENABLED');
       },
       error => {
-        setLocationStatus(error.message);
+        setLocationStatus('FAIL');
+
         Alert.alert('Fail get location, make sure your location');
       },
       {
@@ -65,11 +58,11 @@ export default function MainApp() {
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
           getOneTimeLocation();
         } else {
-          setLocationStatus('Permission Denied');
-          Alert.alert('Permission Denied', locationStatus);
+          setLocationStatus(false);
+          alert('Permission Denied');
         }
       } catch (err) {
-        Alert.alert('Fail get location, make sure your location');
+        alert('Fail get location, make sure your location');
       }
     }
   };
@@ -114,7 +107,7 @@ export default function MainApp() {
       await AsyncStorage.setItem(localItem, JSON.stringify(arr));
       getData();
     } catch (e) {
-      Alert.alert('Device error save data, please reopen app');
+      alert('Device error save data, please reopen app');
     }
   };
 
@@ -149,9 +142,8 @@ export default function MainApp() {
     try {
       await AsyncStorage.removeItem(localItem);
       saveToLocalData();
-      console.log('Call This');
     } catch (exception) {
-      Alert.alert("Data can't be fetch");
+      alert("Data can't be fetch");
     }
   };
 
@@ -182,13 +174,13 @@ export default function MainApp() {
       }
     } catch (error) {
       // error reading value
-      Alert.alert(error);
+      alert('Faoil get location');
     }
   };
 
   useEffect(() => {
-    getCryptoApi();
     requestLocationPermission();
+    getCryptoApi();
     getData();
   }, []);
 
@@ -263,10 +255,23 @@ export default function MainApp() {
     return <Text>Loading</Text>;
   };
 
-  if (isLoading) return <Loader/>;
+  if (isLoading) return <Loader />;
   else if (!currentLocalData && !cryptoData)
-    return <Text>Data Can't Be Fetch</Text>;
-  else if (isError) return <Text>Something is error</Text>;
+    return (
+      <View style={styles.viewContainer}>
+        <Text>Data Can't Be Fetch</Text>
+      </View>
+    );
+  else if (isError)
+    return (
+      <View style={styles.viewContainer}>
+        <Text>Something went wrong</Text>
+      </View>
+    );
+  else if (locationStatus === 'FAIL')
+    <View style={styles.viewContainer}>
+      <Text>Please activeated your location and reopen app again</Text>
+    </View>;
   return (
     <ScrollView style={styles.scrollContainer}>
       <View style={styles.viewContainer}>
@@ -286,9 +291,15 @@ export default function MainApp() {
                       'HH: mm',
                     )}
                   </Text>
-                  <Text>USD: {data?.cryptoData?.bpi?.USD?.rate}</Text>
-                  <Text>Latitude: {data?.location?.coords?.latitude}</Text>
-                  <Text>Longitude: {data?.location?.coords?.longitude}</Text>
+                  <Text style={styles.textData}>
+                    USD: {data?.cryptoData?.bpi?.USD?.rate || ayam}
+                  </Text>
+                  <Text style={styles.textData}>
+                    Latitude: {data?.location?.coords?.latitude}
+                  </Text>
+                  <Text style={styles.textData}>
+                    Longitude: {data?.location?.coords?.longitude}
+                  </Text>
                 </View>
                 <View style={styles.divider} />
               </View>

@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import {StyleSheet} from 'react-native';
 import {
   responsiveFontSize,
   responsiveHeight,
@@ -27,6 +27,9 @@ export const styles = StyleSheet.create({
     marginRight: responsiveWidth(4),
     marginVertical: responsiveHeight(2.2),
   },
+  textData: {
+    color: '#000',
+  },
   viewData: {
     marginLeft: responsiveWidth(4),
     marginRight: responsiveWidth(4),
@@ -35,6 +38,7 @@ export const styles = StyleSheet.create({
   },
   textBold: {
     fontWeight: 'bold',
+    color: '#000000',
   },
   divider: {
     height: responsiveHeight(0.5),
