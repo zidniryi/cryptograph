@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {View, Text, ScrollView, Alert, Dimensions} from 'react-native';
+import {View, Text, ScrollView, Dimensions} from 'react-native';
 import moment from 'moment';
 import {LineChart} from 'react-native-chart-kit';
 import {PermissionsAndroid, Platform} from 'react-native';
@@ -33,7 +33,7 @@ export default function MainApp() {
       error => {
         setLocationStatus('FAIL');
 
-        Alert.alert('Fail get location, make sure your location');
+        alert('Fail get location, make sure your location');
       },
       {
         enableHighAccuracy: false,
